@@ -16,7 +16,7 @@ def search_db(input,cur):
 
 
 def random_word(cur):
-    random_numbers = [random.randint(1, 999) for _ in range(3)]
+    random_numbers = [random.randint(1, 950) for _ in range(3)]
     sql = f'select word,mean,similar from dmz.new_word where number in ({", ".join(map(str, random_numbers))});'
     cur.execute(sql)
     result = cur.fetchall()

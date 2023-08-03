@@ -30,7 +30,7 @@ function getRandomValue() {
     });
 
     let xhr = new XMLHttpRequest();
-    xhr.open('GET', 'http://127.0.0.1:8000/', true);
+    xhr.open('GET', 'http://127.0.0.1:8000', true);
     xhr.setRequestHeader('Content-Type', 'application/json');
 
     xhr.onreadystatechange = function () {
@@ -120,10 +120,15 @@ function send_Sinjoword() {
             // 임시로 버튼 1에 테스트해보기
             if (xhr.status === 200) {
                 const result = JSON.parse(xhr.responseText);
-                console.log(result.word)
-                const answer = `해당 문장에서 신조어는 "${Object.keys(result.word)}"  입니다! \n\n 해당 신조어의 뜻은 ${Object.values(result.word)}입니다., \n\n\n\n  예시: ${result.sentence}\n `
-            
-                new_chat(input_sentence, answer)
+
+                if(result.word.includes('신조어')){
+                    let answer = `${result.word}\n\n ${result.mean}     \n\n${result.sentence}`
+                    new_chat(input_sentence, answer) 
+                }else{
+                    console.log(result.word.includes('신조어')) 
+                    let answer = `신조어)    ${result.word}   입니다.\n\n 신조어 뜻) \t   ${result.mean}     \n\n번역 문장) ${result.sentence}입니다. `
+                    new_chat(input_sentence, answer)
+                } 
             } else {
                 console.error('Error:', xhr.status);
                 document.getElementById('but1').innerText = 'Error occurred. Please try again.';
@@ -157,8 +162,7 @@ function random_click(text){
             // 임시로 버튼 1에 테스트해보기
             if (xhr.status === 200) {
                 const result = JSON.parse(xhr.responseText);
-                console.log(result);
-                const answer = `해당 신조어의 뜻은 ${result.mean}입니다.\n\n아래는 신조어를 보편적 표현으로 바꾼 것입니다. \n\n${result.sentence}`
+                const answer = `해당 신조어의 뜻) ${result.mean}입니다.\n\n\n아래는 신조어를 보편적 표현으로 바꾼 것입니다. \n\n\n${result.sentence}`
                 new_chat(word, answer)
             } else {
                 console.error('Error:', xhr.status);

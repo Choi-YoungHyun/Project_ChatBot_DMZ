@@ -4,8 +4,9 @@
 
 import pandas as pd
 import DAO
-from transformers import XLMRobertaTokenizerFast, XLMRobertaForMaskedLM, pipeline
+from transformers import BertTokenizer, BertForSequenceClassification,XLMRobertaTokenizerFast,XLMRobertaForMaskedLM
 import torch
+import openai
 
 def get_id(word_replacements):
     return_dic = {}
@@ -25,116 +26,127 @@ def get_word_replacements(sentence,cur):
     print(f'DTO에서 출력중 \n {word_replacements}')
     return word_replacements
 
-
 def check_word_in_sentence(sentence, word_list):
+    found_words = []
     for word in word_list:
         if word in sentence:
-            return word  # 캐치한 신조어를 반환
-    return word
+            found_words.append(word)  # 캐치한 신조어를 리스트에 추가
+    return found_words
+
 
 def replace_words(sentence, word_replacements):
     sentences = [sentence]
+    already_replaced = set()
+
     for word, replacements in word_replacements.items():
+        if word in already_replaced:
+            continue
+
         new_sentences = []
         for sent in sentences:
             if word in sent:
-                replacement_words = []
-                for replacement in replacements[1:]:  # 첫 번째 요소를 제외한 뒷부분만 추가
-                    new_sentences.append(sent.replace(word, replacement))
-                    replacement_words.append(replacement)
+                for replacement in replacements[1:]:
+                    new_sentence = sent.replace(word, replacement)
+                    new_sentences.append(new_sentence)
+                    already_replaced.add(replacement)
+
+                    # 만약 새로운 대체어가 다시 신조어를 포함하고 있다면, 해당 신조어도 추가
+                    for replaced_word, replaced_replacements in word_replacements.items():
+                        if replaced_word != word and replaced_word in replacement:
+                            already_replaced.add(replaced_word)
             else:
                 new_sentences.append(sent)
         sentences = new_sentences
-    return sentences, replacement_words
 
-def mask(sentences, replacement_words):
-    masked_sentences = []
-    for sent in sentences:
-        for word in replacement_words:
-            if word in sent:
-                word_idx = sent.index(word)
-                print(word_idx + len(word))
-                print(len(sent))
-                replace_mask = sent[word_idx + len(word)]
-            mask = sent.replace(replace_mask, '<mask>')
-            masked_sentences.append(mask)
-            print(masked_sentences)
+    return sentences
 
-    return masked_sentences
 
-def tokenized(masked_sentences, tokenizer):
-    sequences = []
-    for i in range(len(masked_sentences)):
-        tokenized_sequence = tokenizer.tokenize(masked_sentences[i])
-        sequences.append(tokenized_sequence)
-    return sequences
 
-def encoded(sequence, tokenizer):
-    encoded_sequences = [tokenizer(sequence[i], add_special_tokens=False)['input_ids'] for i in range(len(sequence))]
-    return encoded_sequences
+def evaluate_naturalness(sentence_list):
+    tokenizer = BertTokenizer.from_pretrained('klue/bert-base')
+    model = BertForSequenceClassification.from_pretrained('klue/bert-base')
 
-def similarity(decoded_sequence, original_sequence, masked_index, model, tokenizer):
-    inputs = tokenizer(decoded_sequence, original_sequence, add_special_tokens=True, return_tensors='pt')
-    with torch.no_grad():
-        outputs = model(**inputs)
-    logits = outputs.logits
-    prob = torch.softmax(logits, dim=1)
-    similarity_score = prob[0, masked_index, tokenizer.mask_token_id].item()
-    similarity_score = round(similarity_score, 6) * 100
-    return similarity_score
+    max_naturalness_score = -1
+    most_natural_sentence = None
 
-def find_most_natural_sequence(sequence, encoded_sequences, tokenizer, model):
-    fill_mask = pipeline(task="fill-mask", model=model, tokenizer=tokenizer)
+    for i in range(len(sentence_list)):
+        for j in range(i+1, len(sentence_list)):
+            sentence1 = sentence_list[i]
+            sentence2 = sentence_list[j]
 
-    most_natural_score = -1
-    most_natural_sequence = None
+            inputs = tokenizer(sentence1, sentence2, add_special_tokens=True, return_tensors='pt', truncation=True, padding=True)
 
-    for idx in range(len(sequence)):
-        masked_index = encoded_sequences[idx].index(tokenizer.mask_token_id)
-        input_ids = [encoded_sequences[idx]]
-        predictions = fill_mask(tokenizer.decode(input_ids[0]))
-        top_predictions = predictions[0:3]
+            with torch.no_grad():
+                outputs = model(**inputs)
 
-        for prediction in top_predictions:
-            print(top_predictions)
-            print(prediction)
-            predicted_token = prediction['token_str']
-            decoded_sequence = sequence[idx].replace('<mask>', predicted_token)
-            decoded_sequence = decoded_sequence.replace('#', '')
-            print(f"교체 후: {decoded_sequence}")
+            logits = outputs.logits
+            prob = torch.softmax(logits, dim=1)
+            similarity_score = prob[:, 1].item()
 
-            similarity_score = similarity(decoded_sequence, sequence[idx], masked_index, model, tokenizer)
+            if similarity_score > max_naturalness_score:
+                max_naturalness_score = similarity_score
+                most_natural_sentence = sentence1 if similarity_score > 0.5 else sentence2
 
-            if similarity_score > most_natural_score:
-                most_natural_score = similarity_score
-                most_natural_sequence = decoded_sequence
+    return most_natural_sentence
 
-    return most_natural_sequence
+def improve_sentence(sentence):
+    openai.organization = "org-t59W5OwxkINFi0IhzgLvTQ8e"
+    openai.api_key = "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"
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {
+                "role": "user",
+                "content": f"{sentence} 를 자연스러운 문장으로 바꿔줘",
+            },
+        ]
+    )
+
+    bot_response = response['choices'][0]['message']['content']
+    return bot_response
 
 def main(sentence,cur):
-    word_replacements = get_word_replacements(sentence,cur)
-    return_1= get_id(word_replacements)
-    user_input = sentence
+    try:
+        word_replacements = get_word_replacements(sentence,cur)
+        return_1= get_id(word_replacements)
+        user_input = sentence
 
-    found_word = check_word_in_sentence(user_input, word_replacements.keys())
-    if found_word:
-        print(f"신조어: {found_word}")
-    
-        replaced_sentences, replacement_words = replace_words(user_input, word_replacements)
-        masked_sentences = mask(replaced_sentences, replacement_words)
+        found_words = check_word_in_sentence(user_input, word_replacements.keys())
+        if found_words:
+            print(f"신조어: {', '.join(found_words)}")
+            replaced_sentences = replace_words(user_input, word_replacements)
+            for i, sentence in enumerate(replaced_sentences, 1):
+                print(f"{i}. 번역 결과: {sentence}")
 
-        tokenizer = XLMRobertaTokenizerFast.from_pretrained('xlm-roberta-base')
-        model = XLMRobertaForMaskedLM.from_pretrained('xlm-roberta-base').eval()
+            if len(replaced_sentences) > 1:
+                most_natural_sentence = evaluate_naturalness(replaced_sentences)
+                print(f"가장 자연스러운 문장: {most_natural_sentence}")
+                bot_response = improve_sentence(most_natural_sentence)
+                print(f"GPT 변환문장: {bot_response}")
+                super_most_natural_sentence = evaluate_naturalness((most_natural_sentence,bot_response))
+                print(f"GPT VS 가장 자연스러운 문장:{super_most_natural_sentence}")
+            else:
+                bot_response = improve_sentence(replaced_sentences[0])
+                print(f"GPT 변환문장: {bot_response}")
+                super_most_natural_sentence = evaluate_naturalness((replaced_sentences[0], bot_response))
+                print(f"GPT VS 가장 자연스러운 문장:{super_most_natural_sentence}")
+            
 
-        sequences = tokenized(masked_sentences, tokenizer)
-        print(f'main -> tokenized : {sequences}')
-        encoded_sequences = encoded(masked_sentences, tokenizer)
+            for idx, found_word in enumerate(found_words, 1):
+                print(f'영현이가 {found_words}')
+                print(f'영현이가 {type(found_words)}')
+                print(f'영현이가 {found_word}')
+                if found_word == None:
+                    found_word = 1
+                else:
+                    print(f"해석 {idx}. {found_word} : {word_replacements[found_word][0]}")  # 해당 신조어의 해석 출력
+        else:
+            print("입력한 문장에 설정된 단어가 포함되어 있지 않습니다.")
+            found_word = 0
+            word_replacements [found_word] = ['신조어가 포함된 문장을 입력해주세요']
+            found_words = '신조어가 포함된 문장이 없습니다'
+            super_most_natural_sentence = '위 예시를 참고해주세요'
+    except:
+        print("==============================================")
 
-        most_natural_sequence = find_most_natural_sequence(masked_sentences, encoded_sequences, tokenizer, model)
-
-    else:
-        print("입력한 문장에 설정된 단어가 포함되어 있지 않습니다.")
-
-    print(f'최종 리턴 \n 1번:{return_1} \n 2번{most_natural_sequence}')
-
-    return return_1,most_natural_sequence
+    return found_words,word_replacements[found_word][0],super_most_natural_sentence

@@ -1,2 +1,2 @@
-pip install python-dotenv
-pip install uvicorn
+#설치법 
+pip install -r ./requirements.txt
