@@ -2,11 +2,18 @@
 # 재해석 문제 해결
 # 다수의 해석이 있는 경우 해결
 
+import os
 import pandas as pd
+from dotenv import load_dotenv
 import DAO
 from transformers import BertTokenizer, BertForSequenceClassification,XLMRobertaTokenizerFast,XLMRobertaForMaskedLM
 import torch
 import openai
+
+load_dotenv()
+
+API_KEY = os.getenv('API_KEY')
+API_ORGANIZATION = os.getenv('API_ORGANIZATION')
 
 def get_id(word_replacements):
     return_dic = {}
@@ -90,8 +97,8 @@ def evaluate_naturalness(sentence_list):
     return most_natural_sentence
 
 def improve_sentence(sentence):
-    openai.organization = "org-t59W5OwxkINFi0IhzgLvTQ8e"
-    openai.api_key = "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"
+    openai.organization = API_ORGANIZATION
+    openai.api_key = API_KEY
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
@@ -106,6 +113,7 @@ def improve_sentence(sentence):
     return bot_response
 
 def main(sentence,cur):
+    global return_2
     try:
         word_replacements = get_word_replacements(sentence,cur)
         return_1= get_id(word_replacements)
@@ -131,15 +139,9 @@ def main(sentence,cur):
                 super_most_natural_sentence = evaluate_naturalness((replaced_sentences[0], bot_response))
                 print(f"GPT VS 가장 자연스러운 문장:{super_most_natural_sentence}")
             
-
             for idx, found_word in enumerate(found_words, 1):
-                print(f'영현이가 {found_words}')
-                print(f'영현이가 {type(found_words)}')
-                print(f'영현이가 {found_word}')
-                if found_word == None:
-                    found_word = 1
-                else:
-                    print(f"해석 {idx}. {found_word} : {word_replacements[found_word][0]}")  # 해당 신조어의 해석 출력
+                print(f"해석 {idx}. {found_word} : {word_replacements[found_word][0]}")  # 해당 신조어의 해석 출력
+                print(f'0804{found_word}')
         else:
             print("입력한 문장에 설정된 단어가 포함되어 있지 않습니다.")
             found_word = 0

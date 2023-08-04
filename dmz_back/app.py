@@ -4,12 +4,18 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-
+from dotenv import load_dotenv
 import DAO
 import DTO
 
 
 # 환경변수로 중요한 데이터 빼놓은 부분
+
+load_dotenv()
+DB_HOST = os.getenv("DB_HOST")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_NAME = os.getenv("DB_NAME")
 
 
 app = FastAPI()
@@ -22,7 +28,7 @@ app.add_middleware(
 )
 #db와연동 확인
 try:
-    connect = pymysql.connect(host="127.0.0.1", user="root", password="1234", db="dmz")
+    connect = pymysql.connect(host="svc.sel4.cloudtype.app", user="root", password="1234", db="dmz",port=30302)
     print("MariaDB에 연결")
     cur = connect.cursor()
 
