@@ -16,11 +16,11 @@
 
 # Screen Layout
 <div style="text-align: center;">
-    <img src="https://github.com/Choi-YoungHyun/Project_ChatBot_DMZ/assets/131942940/b145a7c6-d596-419c-8479-62bbca9060b7" alt="이미지">
+    <img src="https://github.com/Choi-YoungHyun/Project_ChatBot_DMZ/assets/131942940/d52c5b33-c59b-4d2d-b45d-284ca686b86c" alt="이미지">
 </div>
 
 <div style="text-align: center;">
-    <img src="https://github.com/Choi-YoungHyun/Project_ChatBot_DMZ/assets/131942940/d52c5b33-c59b-4d2d-b45d-284ca686b86c" alt="이미지">
+    <img src="https://github.com/Choi-YoungHyun/Project_ChatBot_DMZ/assets/131942940/b145a7c6-d596-419c-8479-62bbca9060b7" alt="이미지">
 </div>
 
 
